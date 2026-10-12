@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Prik Nederland</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#e7ece9; --fg:#18242b; --muted:#5b6b72;
+  --sign:#0b4f9c; --sign-fg:#fff; --sign-yellow:#f6c800;
+  --pin:#e2571c; --truth:#17803d; --panel:#fff; --line:#d3dbd6; --hecto:#2e6b3f;
+  --f-sign:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1719; --fg:#e4ece8; --muted:#94a6a4; --sign:#1561b8;
+  --pin:#ff7a3d; --truth:#3fc172; --panel:#18232a; --line:#2b3a3f; --hecto:#3d8a52; color-scheme:dark}}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:16px;box-sizing:border-box}
+.mapwrap{position:relative;min-height:0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0d1a1f}
+#map{position:absolute;inset:0;cursor:crosshair}
+.leaflet-container{font-family:var(--f-body);background:#0d1a1f}
+.layers{position:absolute;left:12px;top:12px;z-index:500;display:flex;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.layers button{border:0;background:transparent;color:var(--fg);font:600 14px var(--f-sign);letter-spacing:.04em;padding:8px 11px;cursor:pointer}
+.layers button[aria-pressed="true"]{background:var(--sign);color:#fff}
+.side{display:flex;flex-direction:column;gap:14px;min-height:0;overflow:auto}
+.top{display:flex;align-items:center;gap:12px}
+.brand{font:700 26px/1 var(--f-sign);flex:1}
+.brand small{display:block;font:500 13px var(--f-body);color:var(--muted);margin-top:4px}
+.hecto{background:var(--hecto);color:#fff;border-radius:4px 4px 2px 2px;padding:5px 9px 6px;text-align:center;font:600 13px/1.05 var(--f-sign);min-width:44px}
+.hecto b{display:block;font-size:22px}
+.sign{background:var(--sign);color:var(--sign-fg);border-radius:12px;padding:16px 18px 18px;box-shadow:inset 0 0 0 3px var(--sign),inset 0 0 0 5px #fff}
+.sign .cat{display:inline-flex;align-items:center;gap:6px;font:600 13px var(--f-sign);letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+.sign .cat i{font-style:normal;background:var(--sign-yellow);color:#111;border-radius:4px;padding:1px 6px}
+.sign h2{font:700 30px/1.08 var(--f-sign);margin:8px 0 6px;text-wrap:balance}
+.sign p{margin:0;line-height:1.4}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums}
+.big{font:700 34px/1 var(--f-sign)}
+.lbl{font:600 12px var(--f-sign);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.btn{appearance:none;border:0;border-radius:10px;padding:13px 16px;font:700 18px var(--f-sign);letter-spacing:.03em;background:var(--pin);color:#fff;cursor:pointer;width:100%}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.alt{background:var(--sign)}
+button:focus-visible{outline:3px solid var(--sign-yellow);outline-offset:2px}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--truth);width:0;transition:width .6s ease}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.hist li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:baseline;font-variant-numeric:tabular-nums}
+.hist li span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist li .n{color:var(--muted)}
+.overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);display:grid;place-items:center;padding:16px;z-index:2000}
+.overlay[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:460px;width:100%;padding:22px;display:flex;flex-direction:column;gap:14px;max-height:calc(100% - 32px);overflow:auto;box-sizing:border-box}
+.card h1{font:700 40px/1 var(--f-sign);margin:0}
+.card p{margin:0;line-height:1.5;color:var(--muted)}
+.pinicon svg{display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.truthlabel{background:#fff;color:#111;border:0;border-radius:6px;font:700 14px var(--f-sign);padding:3px 8px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.truthlabel::before{display:none}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr) auto;padding:10px 12px;gap:10px}
+  .side{display:contents}
+  .top{order:0}.sign{order:1}.mapwrap{order:2;min-height:300px}.panel{order:3}
+  .sign{padding:12px 14px 14px}.sign h2{font-size:24px;margin:4px 0}.sign p{font-size:14px}
+  .hist,.histlbl{display:none}.brand small{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="mapwrap">
+    <div id="map" aria-label="Satellietkaart van Nederland"></div>
+    <div class="layers" role="group" aria-label="Ondergrond">
+      <button id="l-esri" aria-pressed="true">Satelliet</button>
+      <button id="l-pdok" aria-pressed="false">Luchtfoto NL</button>
+    </div>
+  </div>
+  <div class="side">
+    <div class="top">
+      <div class="brand">Prik Nederland<small>Raad de plek op de satellietkaart</small></div>
+      <div class="hecto" title="Ronde"><b id="rnd">1</b>van 10</div>
+    </div>
+    <div class="sign">
+      <div class="cat" id="cat">Monument</div>
+      <h2 id="qname">…</h2>
+      <p id="qhint"></p>
+    </div>
+    <div class="panel">
+      <div class="row"><div><div class="lbl">Totaal</div><div class="big" id="total">0</div></div>
+        <div style="text-align:right"><div class="lbl" id="lastlbl">Deze ronde</div><div class="big" id="last">–</div></div></div>
+      <div class="bar"><span id="barfill"></span></div>
+      <div class="row" id="distrow" hidden><span class="lbl">Afstand</span><span id="dist" style="font-weight:600"></span></div>
+      <button class="btn" id="go" disabled>Zet eerst je prikker</button>
+      <div class="lbl histlbl">Rondes</div>
+      <ol class="hist" id="hist"></ol>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <div class="card">
+    <h1>Prik Nederland</h1>
+    <p>Je krijgt 10 plekken: monumenten, snelwegknooppunten, tunnels en stations. De satellietkaart heeft geen namen en geen grenzen. Zoom in, zoek je plek en zet je prikker. Hoe dichterbij, hoe meer punten, tot 1000 per ronde.</p>
+    <p>Na elke gok verschijnen plaatsnamen en wegen op de kaart, zodat je ziet waar je zat.</p>
+    <p id="best"></p>
+    <button class="btn" id="startbtn">Start ronde van 10</button>
+  </div>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="card">
+    <div class="lbl">Eindscore</div>
+    <h1 id="endscore">0</h1>
+    <p id="endverdict"></p>
+    <ol class="hist" id="endhist"></ol>
+    <button class="btn" id="again">Nog een keer</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const POOL=[
+ {t:'m',n:'Kronenburgertoren',h:'In een van de oudste steden van Nederland.',c:[51.8484,5.8644]},
+ {t:'m',n:'Domtoren',h:'De hoogste kerktoren van het land, in de stad met de grootste NS-hub.',c:[52.0907,5.1214]},
+ {t:'m',n:'Martinitoren',h:'De "Olle Grieze" kijkt uit over de Grote Markt in het noorden.',c:[53.2193,6.5683]},
+ {t:'m',n:'Oldehove',h:'Een scheve toren die nooit af is gekomen, in de Friese hoofdstad.',c:[53.2035,5.7880]},
+ {t:'m',n:'Sint-Janskathedraal',h:'Gotische kathedraal in de stad van Jeroen Bosch.',c:[51.6886,5.3087]},
+ {t:'m',n:'Sint-Servaasbasiliek',h:'Aan het Vrijthof, in de zuidelijkste provinciehoofdstad.',c:[50.8489,5.6880]},
+ {t:'m',n:'Paleis Het Loo',h:'Koninklijk paleis met barokke tuinen aan de rand van de Veluwe.',c:[52.2340,5.9456]},
+ {t:'m',n:'Erasmusbrug',h:'"De Zwaan" over de Nieuwe Maas.',c:[51.9094,4.4868]},
+ {t:'m',n:'Molens van Kinderdijk',h:'19 molens op UNESCO-lijst in de Alblasserwaard.',c:[51.8838,4.6393]},
+ {t:'m',n:'Binnenhof',h:'Het oudste nog gebruikte parlementsgebouw ter wereld, maar niet in de hoofdstad.',c:[52.0797,4.3133]},
+ {t:'m',n:'Muiderslot',h:'Middeleeuws kasteel waar P.C. Hooft woonde, bij de monding van de Vecht.',c:[52.3342,5.0717]},
+ {t:'m',n:'Kasteel De Haar',h:'Het grootste kasteel van Nederland, net buiten de Domstad.',c:[52.1214,4.9928]},
+ {t:'m',n:'Lange Jan',h:'Abdijtoren in de hoofdstad van Zeeland.',c:[51.4995,3.6114]},
+ {t:'m',n:'Zaanse Schans',h:'Groene houten huizen en molens langs de Zaan.',c:[52.4741,4.8170]},
+ {t:'m',n:'Hunebed D27',h:'Het grootste hunebed van Nederland, op de Hondsrug.',c:[52.9246,6.7928]},
+ {t:'m',n:'Drielandenpunt',h:'Het hoogste punt van het Europese deel van Nederland.',c:[50.7543,6.0207]},
+ {t:'m',n:'Brandaris',h:'De oudste vuurtoren van Nederland, op een Waddeneiland.',c:[53.3615,5.2152]},
+ {t:'m',n:'Vuurtoren Lange Jaap',h:'De hoogste gietijzeren vuurtoren, in de marinestad.',c:[52.9614,4.7272]},
+ {t:'m',n:'Stadhuis van Gouda',h:'Gotisch stadhuis midden op de markt van de kaasstad.',c:[52.0117,4.7105]},
+ {t:'m',n:'De Waag',h:'Op de Brink van een Hanzestad aan de IJssel.',c:[52.2513,6.1572]},
+ {t:'m',n:'De Peperbus',h:'Kerktoren in een Hanzestad tussen IJssel en Vecht.',c:[52.5126,6.0918]},
+ {t:'m',n:'John Frostbrug',h:'Een brug te ver, over de Nederrijn.',c:[51.9765,5.9118]},
+ {t:'m',n:'Evoluon',h:'Een vliegende schotel van beton, gebouwd door een lampenfabrikant.',c:[51.4440,5.4483]},
+ {t:'m',n:'Vesting Bourtange',h:'Stervormig vestingdorp vlak bij de Duitse grens.',c:[53.0068,7.1918]},
+ {t:'m',n:'Vesting Naarden',h:'Twaalfpuntige vesting aan het Gooimeer.',c:[52.2958,5.1620]},
+ {t:'m',n:'Koppelpoort',h:'Gecombineerde land- en waterpoort in de Keistad.',c:[52.1600,5.3820]},
+ {t:'m',n:'Het witte stadje Thorn',h:'Witgekalkte huizen in Midden-Limburg, vlak bij de Maas.',c:[51.1617,5.8420]},
+ {t:'m',n:'Nationaal Monument op de Dam',h:'Hier begint elk jaar op 4 mei de Dodenherdenking.',c:[52.3729,4.8935]},
+ {t:'m',n:'Maeslantkering',h:'Twee armen zo lang als de Eiffeltoren sluiten de Nieuwe Waterweg af.',c:[51.9555,4.1655]},
+ {t:'m',n:'Woudagemaal',h:'Het grootste nog werkende stoomgemaal ter wereld, in Friesland.',c:[52.8606,5.6911]},
+ {t:'m',n:'Schokland',h:'Een voormalig eiland dat nu droog in de polder ligt.',c:[52.6343,5.7740]},
+ {t:'m',n:'Herinneringscentrum Kamp Westerbork',h:'Voormalig doorgangskamp in de bossen van Drenthe.',c:[52.9170,6.6060]},
+ {t:'m',n:'Oosterscheldekering',h:'Het grootste werk van de Deltawerken.',c:[51.6450,3.7100]},
+ {t:'m',n:'Afsluitdijkmonument',h:'Op de plek waar in 1932 het laatste gat werd gedicht.',c:[53.0730,5.1600]},
+ {t:'m',n:'Euromast',h:'Uitzichttoren naast het Park, aan de Maas.',c:[51.9055,4.4666]},
+
+ {t:'w',r:'A2',n:'Leidsche Rijntunnel',h:'Waar de A2 in de gemeente Utrecht onder de grond gaat.',c:[52.0930,5.0560]},
+ {t:'w',r:'A12',n:'Knooppunt Velperbroek',h:'Waar de A12 aftakt naar de A348, oostelijk van Arnhem.',c:[51.9880,5.9950]},
+ {t:'w',r:'A1',n:'Knooppunt Hoevelaken',h:'A1 en A28 kruisen elkaar, berucht van de files.',c:[52.1761,5.4303]},
+ {t:'w',r:'A2',n:'Knooppunt Oudenrijn',h:'A2 en A12 ontmoeten elkaar aan de westkant van Utrecht.',c:[52.0710,5.0510]},
+ {t:'w',r:'A6',n:'Knooppunt Joure',h:'A6 en A7 kruisen in het hart van Friesland.',c:[52.9770,5.7740]},
+ {t:'w',r:'A16',n:'Knooppunt Ridderkerk',h:'A15 en A16 splitsen bij de Noord.',c:[51.8670,4.5960]},
+ {t:'w',r:'A4',n:'Knooppunt Prins Clausplein',h:'A4 en A12 kruisen aan de rand van de hofstad.',c:[52.0705,4.3825]},
+ {t:'w',r:'A10',n:'Coentunnel',h:'De A10 duikt onder het Noordzeekanaal door.',c:[52.3980,4.8770]},
+ {t:'w',r:'A2',n:'Knooppunt Holendrecht',h:'A2 en A9 bij het AMC in Amsterdam-Zuidoost.',c:[52.2900,4.9550]},
+ {t:'w',r:'A15',n:'Knooppunt Deil',h:'A2 en A15 kruisen in de Betuwe.',c:[51.8530,5.2430]},
+ {t:'w',r:'A2',n:'Knooppunt Ekkersweijer',h:'A2 en A58 komen samen ten noorden van de lichtstad.',c:[51.4940,5.4160]},
+ {t:'w',r:'A2',n:'Knooppunt Kerensheide',h:'A2 en A76 bij Stein, in de Westelijke Mijnstreek.',c:[50.9770,5.7880]},
+ {t:'w',r:'A16',n:'Van Brienenoordbrug',h:'Een van de drukste bruggen van het land, over de Nieuwe Maas.',c:[51.9060,4.5460]},
+ {t:'w',r:'A16',n:'Moerdijkbrug',h:'De A16 steekt het Hollandsch Diep over.',c:[51.7030,4.6270]},
+ {t:'w',r:'A6',n:'Ketelbrug',h:'De A6 tussen Flevoland en de Noordoostpolder.',c:[52.5980,5.7350]},
+ {t:'w',r:'A22',n:'Velsertunnel',h:'De A22 onder het Noordzeekanaal bij IJmuiden.',c:[52.4650,4.6560]},
+ {t:'w',r:'A12',n:'Knooppunt Lunetten',h:'A12 en A27 aan de zuidoostkant van Utrecht.',c:[52.0650,5.1460]},
+ {t:'w',r:'A28',n:'Knooppunt Hattemerbroek',h:'A28 en A50 bij de IJssel, noordelijk van de Veluwe.',c:[52.4890,6.0350]},
+ {t:'w',r:'A1',n:'Knooppunt Azelo',h:'A1 en A35 in Twente.',c:[52.2720,6.7500]},
+ {t:'w',r:'A7',n:'Knooppunt Julianaplein',h:'A7 en A28 aan de zuidkant van de Stad.',c:[53.2030,6.5630]},
+ {t:'w',r:'A1',n:'Knooppunt Muiderberg',h:'A1 en A6 bij het Gooimeer.',c:[52.3300,5.1100]},
+
+ {t:'s',n:'Station Ede-Wageningen',h:'Intercitystation op de Veluwe, voor de universiteitsstad aan de overkant.',c:[52.0277,5.6707]},
+ {t:'s',n:'Utrecht Centraal',h:'Het drukste station van Nederland.',c:[52.0894,5.1100]},
+ {t:'s',n:'Amsterdam Centraal',h:'Gebouwd op een kunstmatig eiland in het IJ.',c:[52.3784,4.9003]},
+ {t:'s',n:'Rotterdam Centraal',h:'De puntige hal wijst naar het centrum van de havenstad.',c:[51.9244,4.4690]},
+ {t:'s',n:'Station Schiphol Airport',h:'Ondergronds station onder de luchthaven.',c:[52.3090,4.7614]},
+ {t:'s',n:'Station Zwolle',h:'Spoorknooppunt voor het noorden en oosten.',c:[52.5047,6.0920]},
+ {t:'s',n:'Amersfoort Centraal',h:'Overstappunt tussen west en noordoost.',c:[52.1530,5.3735]},
+ {t:'s',n:'Arnhem Centraal',h:'Station met een golvende, betonnen hal.',c:[51.9850,5.8990]},
+ {t:'s',n:'Station Den Helder',h:'Het noordelijkste eindpunt op het vasteland van Noord-Holland.',c:[52.9550,4.7610]},
+ {t:'s',n:'Station Enschede',h:'Eindstation in de grootste stad van Twente.',c:[52.2223,6.8900]},
+ {t:'s',n:'Station Venlo',h:'Grensstation aan de Maas.',c:[51.3640,6.1715]},
+ {t:'s',n:'Station Roosendaal',h:'Grensstation richting Antwerpen, West-Brabant.',c:[51.5400,4.4580]},
+ {t:'s',n:'Station Vlissingen',h:'Het zuidwestelijkste eindpunt, met uitzicht op de Westerschelde.',c:[51.4440,3.5970]},
+ {t:'s',n:'Station Groningen',h:'Eindpunt voor treinen uit het hele land, in het noorden.',c:[53.2108,6.5640]},
+ {t:'s',n:'Station Leeuwarden',h:'Vanaf hier rijden treinen naar Harlingen en Stavoren.',c:[53.1960,5.7930]},
+ {t:'s',n:'Station Maastricht',h:'Het zuidelijkste intercitystation.',c:[50.8500,5.7055]},
+ {t:'s',n:'Station Lelystad Centrum',h:'In de hoofdstad van de jongste provincie.',c:[52.5100,5.4740]},
+ {t:'s',n:'Station Driebergen-Zeist',h:'Bosrijk station op de Utrechtse Heuvelrug.',c:[52.0510,5.2830]},
+ {t:'s',n:'Station Hengelo',h:'Twentse spoorknoop richting Duitsland.',c:[52.2620,6.7940]},
+ {t:'s',n:'Station Breukelen',h:'Dorp aan de Vecht dat zijn naam aan een New Yorks stadsdeel gaf.',c:[52.1708,4.9900]},
+];
+const CAT={m:'Monument',w:'Snelweg',s:'Station'};
+const $=id=>document.getElementById(id);
+const score=d=>d<0.5?1000:Math.round(1000*Math.exp(-d/35));
+const fmt=d=>d<1?Math.round(d*1000)+' m':(d<10?d.toFixed(1):Math.round(d))+' km';
+
+const NL=L.latLngBounds([50.70,3.25],[53.62,7.30]);
+const map=L.map('map',{zoomControl:true,maxBounds:NL.pad(0.25),maxBoundsViscosity:0.8,minZoom:7,maxZoom:18,zoomSnap:0.25,attributionControl:true}).fitBounds(NL);
+const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:19,attribution:'Beelden © Esri, Maxar, Earthstar Geographics'});
+const pdok=L.tileLayer('https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg',
+  {maxZoom:19,minZoom:6,bounds:NL.pad(0.05),attribution:'Luchtfoto © Beeldmateriaal Nederland / PDOK'});
+const labels=L.layerGroup([
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Labels © Esri'})
+]);
+let base=esri;base.addTo(map);
+function setBase(l){map.removeLayer(base);base=l;base.addTo(map);base.bringToBack();
+  $('l-esri').setAttribute('aria-pressed',l===esri);$('l-pdok').setAttribute('aria-pressed',l===pdok);}
+$('l-esri').onclick=()=>setBase(esri);$('l-pdok').onclick=()=>setBase(pdok);
+
+const pinSVG=c=>`<svg width="30" height="40" viewBox="-8 -22 16 23"><path d="M0,0 C-2,-5 -6.5,-8 -6.5,-14 A6.5,6.5 0 1 1 6.5,-14 C6.5,-8 2,-5 0,0Z" fill="${c}" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-14" r="2.6" fill="#fff"/></svg>`;
+const icon=c=>L.divIcon({className:'pinicon',html:pinSVG(c),iconSize:[30,40],iconAnchor:[15,39]});
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+let round=0,total=0,guess=null,phase='guess',qs=[],results=[],layers=L.layerGroup().addTo(map),guessMarker=null;
+
+function pick(){
+  const sh=a=>a.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]);
+  const by=t=>sh(POOL.filter(p=>p.t===t));
+  const m=by('m'),w=by('w'),s=by('s');
+  const rest=sh([...m.slice(3),...w.slice(3),...s.slice(3)]);
+  return sh([...m.slice(0,3),...w.slice(0,3),...s.slice(0,3),rest[0]]);
+}
+function startGame(){qs=pick();round=0;total=0;results=[];$('hist').innerHTML='';$('total').textContent='0';
+  $('start').hidden=true;$('end').hidden=true;newRound();}
+function newRound(){
+  const q=qs[round];guess=null;phase='guess';layers.clearLayers();guessMarker=null;
+  if(map.hasLayer(labels))map.removeLayer(labels);
+  $('rnd').textContent=round+1;
+  $('cat').innerHTML=(q.t==='w'?`<i>${q.r}</i> `:'')+CAT[q.t];
+  $('qname').textContent=q.n;$('qhint').textContent=q.h;
+  $('last').textContent='–';$('lastlbl').textContent='Deze ronde';$('distrow').hidden=true;$('barfill').style.width='0';
+  const go=$('go');go.disabled=true;go.textContent='Zet eerst je prikker';go.className='btn';
+  map.flyToBounds(NL,{duration:0.6});
+}
+map.on('click',e=>{
+  if(phase!=='guess'||!$('start').hidden||!$('end').hidden)return;
+  guess=e.latlng;
+  if(guessMarker)guessMarker.setLatLng(guess);
+  else{guessMarker=L.marker(guess,{icon:icon(css('--pin')),draggable:true}).addTo(layers);
+       guessMarker.on('dragend',()=>guess=guessMarker.getLatLng());}
+  const go=$('go');go.disabled=false;go.textContent='Prik hier!';
+});
+function confirmGuess(){
+  const q=qs[round],truth=L.latLng(q.c),d=guess.distanceTo(truth)/1000,p=score(d);
+  total+=p;results.push({q,d,p});phase='reveal';guessMarker.dragging.disable();
+  labels.addTo(map);
+  L.polyline([guess,truth],{color:'#fff',weight:3,dashArray:'8 7',opacity:.95}).addTo(layers);
+  L.marker(truth,{icon:icon(css('--truth'))}).addTo(layers)
+    .bindTooltip(q.n,{permanent:true,direction:'bottom',offset:[0,4],className:'truthlabel'});
+  $('last').textContent=p;$('lastlbl').textContent='Punten';$('total').textContent=total;
+  $('dist').textContent=fmt(d);$('distrow').hidden=false;$('barfill').style.width=(p/10)+'%';
+  addHist($('hist'),round,q,d,p);
+  const go=$('go');go.disabled=false;go.className='btn alt';go.textContent=round===9?'Bekijk eindscore':'Volgende plek';
+  map.flyToBounds(L.latLngBounds([guess,truth]).pad(0.35),{maxZoom:15,duration:0.9});
+}
+function addHist(ol,i,q,d,p){const li=document.createElement('li');li.innerHTML=`<span class="n">${i+1}</span><span></span><b>${p}</b>`;
+  li.children[1].textContent=q.n+' · '+fmt(d);ol.appendChild(li);}
+function endGame(){
+  $('endscore').textContent=total+' / 10.000';
+  const v=total>=8500?'Topograaf van het jaar. Jij hebt geen navigatie nodig.':total>=6500?'Sterk! Je kent Nederland van binnen en buiten.':total>=4500?'Netjes. Hier en daar een afslag gemist.':total>=2500?'Je komt er wel, maar misschien via een omweg.':'Tijd voor een rondje Nederland met de trein.';
+  let best=0;try{best=+localStorage.getItem('prik-best')||0;if(total>best)localStorage.setItem('prik-best',total);}catch(e){}
+  $('endverdict').textContent=v+(total>best&&best>0?' Nieuw record!':best?` Je record: ${best}.`:'');
+  $('endhist').innerHTML='';results.forEach((r,i)=>addHist($('endhist'),i,r.q,r.d,r.p));
+  $('end').hidden=false;
+}
+$('go').onclick=()=>{if(phase==='guess'&&guess)confirmGuess();else if(phase==='reveal'){if(round===9)endGame();else{round++;newRound();}}};
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&$('start').hidden&&$('end').hidden&&!$('go').disabled)$('go').click();});
+$('startbtn').onclick=startGame;$('again').onclick=startGame;
+try{const b=+localStorage.getItem('prik-best');if(b)$('best').textContent='Jouw record: '+b+' punten.';}catch(e){}
+qs=pick();newRound();
+</script>
+</body>
+</html>
