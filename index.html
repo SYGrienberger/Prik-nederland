@@ -98,6 +98,20 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--sign-yellow);ou
 .share{display:flex;flex-direction:column;gap:8px}
 .share pre{margin:0;white-space:pre-wrap;word-break:break-word;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;user-select:all}
 
+/* Kevin Modus */
+.kevin{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;position:relative}
+.kevin:has(input:checked){border-color:var(--sign-yellow);background:color-mix(in srgb,var(--sign-yellow) 14%,transparent)}
+.kevin input{position:absolute;opacity:0;width:1px;height:1px}
+.kevin .sw{flex:none;width:42px;height:24px;border-radius:99px;background:var(--line);position:relative;transition:background .2s;margin-top:1px}
+.kevin .sw::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.kevin input:checked+.sw{background:var(--sign)}
+.kevin input:checked+.sw::after{transform:translateX(18px)}
+.kevin input:focus-visible+.sw{outline:3px solid var(--sign-yellow);outline-offset:2px}
+.kevin strong{display:block;font:700 18px/1.1 var(--f-sign);letter-spacing:.02em}
+.kevin span.t{font-size:13.5px;color:var(--muted);line-height:1.4}
+.kbadge{display:inline-block;background:var(--sign-yellow);color:#111;border-radius:4px;padding:1px 6px;font:700 12px var(--f-sign);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle;margin-left:6px}
+@media (prefers-reduced-motion:reduce){.kevin .sw,.kevin .sw::after{transition:none}}
+
 /* voortgang overzetten */
 .transfer{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
 .transfer textarea{width:100%;box-sizing:border-box;height:70px;font:12px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);padding:8px;resize:vertical}
@@ -177,8 +191,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--sign-yellow);ou
 
     <div class="rank">
       <div class="hecto"><b id="curlvl">1</b>level</div>
-      <div><div class="lbl">Jouw level</div><div class="title" id="curtitle">Toerist</div></div>
+      <div><div class="lbl">Jouw level<span class="kbadge" id="kbadge" hidden>Kevin Modus</span></div><div class="title" id="curtitle">Toerist</div></div>
     </div>
+    <label class="kevin" for="kevin">
+      <input type="checkbox" id="kevin">
+      <span class="sw" aria-hidden="true"></span>
+      <span><strong>Kevin Modus</strong><span class="t">Geen knooppunten. Wel herkenbare plekken langs de snelweg, zoals bruggen en tunnels. Kevin Modus heeft een eigen ladder, zodat je alleen tegen andere Kevins speelt.</span></span>
+    </label>
     <div class="ladder" id="ladder" role="group" aria-label="Levels"></div>
     <div class="rules">
       <span><b class="arrow up">▲</b> Promotie vanaf <strong>3.500</strong></span>
@@ -210,7 +229,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--sign-yellow);ou
     </div>
     <button class="linkbtn" id="reset">Voortgang wissen en opnieuw beginnen bij level 1</button>
     <div id="resetconfirm" hidden class="banner" style="border-color:var(--down)">
-      <p>Weet je het zeker? Je level en al je scores per level worden gewist.</p>
+      <p id="resettxt">Weet je het zeker? Je level en al je scores per level worden gewist.</p>
       <div class="btnrow"><button class="btn" id="resetyes" style="background:var(--down)">Ja, wis alles</button><button class="btn ghost" id="resetno">Annuleren</button></div>
     </div>
   </div>
@@ -340,6 +359,9 @@ const POOL=[
  {t:'w',r:'A29',n:'Heinenoordtunnel',h:'De A29 onder de Oude Maas, op weg naar de Hoeksche Waard.',c:[51.8280,4.4960]},
  {t:'w',r:'A9',n:'Wijkertunnel',h:'De A9 onder het Noordzeekanaal, oostelijk van IJmuiden.',c:[52.4730,4.6850]},
  {t:'w',r:'A6',n:'Hollandse Brug',h:'De A6 over het Gooimeer, tussen het Gooi en Almere.',c:[52.3256,5.1389]},
+ {t:'w',r:'A2',n:'Koning Willem-Alexandertunnel',h:'De dubbeldekse A2-tunnel onder de stad aan de Maas.',c:[50.8560,5.7140]},
+ {t:'w',r:'A10',n:'Zeeburgertunnel',h:'De oostkant van de A10 duikt hier onder het IJ door.',c:[52.3780,4.9605]},
+ {t:'w',r:'A12',n:'Galecopperbrug',h:'De A12 over het Amsterdam-Rijnkanaal, aan de zuidwestkant van Utrecht.',c:[52.0735,5.0815]},
  {t:'w',r:'A7',n:'A7 bij Breezanddijk',h:'Een parkeerplaats en een haventje midden op de Afsluitdijk.',c:[53.0200,5.2000]},
 
  {t:'s',n:'Station Ede-Wageningen',h:'Intercitystation op de Veluwe, voor de universiteitsstad aan de overkant.',c:[52.0279,5.6716]},
@@ -467,6 +489,19 @@ const LEVELS=[
  {t:'Bosatlas',      p:['Kasteel Heeswijk','Hartelkering','Engelsmanplaat','Knooppunt Zaarderheiken','Station Zutphen']},
 ];
 const PROMO=3500,DEGR=2000;
+/* Kevin Modus: geen knooppunten. Elk knooppunt in een level krijgt een vaste vervanger,
+   zodat Kevin-levels ook voor iedereen gelijk zijn. */
+const KEVIN_SUB={
+ 'Knooppunt Hoevelaken':'Koning Willem-Alexandertunnel',
+ 'Knooppunt Prins Clausplein':'A7 bij Breezanddijk',
+ 'Knooppunt Velperbroek':'Velsertunnel',
+ 'Knooppunt Joure':'Zeeburgertunnel',
+ 'Knooppunt Terbregseplein':'Drechttunnel',
+ 'Knooppunt Deil':'Galecopperbrug',
+ 'Knooppunt Azelo':'Wijkertunnel',
+ 'Knooppunt Zaarderheiken':'Heinenoordtunnel',
+};
+const isKnoop=p=>p.t==='w'&&/^Knooppunt /.test(p.n);
 const CAT={m:'Bezienswaardigheid',w:'Snelweg',s:'Station',k:'Waterwerk',n:'Natuur'};
 const $=id=>document.getElementById(id);
 const nf=n=>n.toLocaleString('nl-NL');
@@ -482,8 +517,14 @@ POOL.forEach(p=>{if(fixes[p.n])p.c=fixes[p.n];});
 const byName=Object.fromEntries(POOL.map(p=>[p.n,p]));
 
 /* voortgang */
-let lad=Object.assign({cur:1,max:1,best:{},first:{},tries:{},champ:false},store.get('prik-ladder',{}));
-const saveLad=()=>store.set('prik-ladder',lad);
+const newLad=o=>Object.assign({cur:1,max:1,best:{},first:{},tries:{},champ:false},o||{});
+const ladKey=k=>k?'prik-ladder-kevin':'prik-ladder';
+let kevin=!!store.get('prik-kevin',false);
+let lad=newLad(store.get(ladKey(kevin),{}));
+const saveLad=()=>store.set(ladKey(kevin),lad);
+function setKevin(on){on=!!on;if(on===kevin)return;kevin=on;store.set('prik-kevin',kevin);lad=newLad(store.get(ladKey(kevin),{}));}
+const levelPlaces=n=>LEVELS[n-1].p.map(x=>kevin&&KEVIN_SUB[x]?KEVIN_SUB[x]:x);
+const modeName=()=>kevin?'Kevin Modus · ':'';
 
 /* ===== Kaart ===== */
 const NL=L.latLngBounds([50.70,3.25],[53.62,7.30]);
@@ -511,12 +552,13 @@ let guessMarker=null,truthMarker=null;
 
 /* lopend spel bewaren, zodat je verder kunt na het sluiten van de pagina */
 function saveGame(){if(!game)return;
-  store.set('prik-game',{mode:game.mode,level:game.level,qs:game.qs.map(q=>q.n),round:game.round,total:game.total,phase:game.phase,
+  store.set('prik-game',{kevin,mode:game.mode,level:game.level,qs:game.qs.map(q=>q.n),round:game.round,total:game.total,phase:game.phase,
     results:game.results.map(r=>({n:r.q.n,d:r.d,p:r.p}))});}
 function clearSaved(){try{localStorage.removeItem('prik-game')}catch(e){}}
 function savedGame(){const s=store.get('prik-game',null);
   if(!s||!Array.isArray(s.qs)||!s.qs.every(n=>byName[n]))return null;return s;}
 function resumeGame(){const s=savedGame();if(!s){showHome();return;}
+  setKevin(!!s.kevin);
   start({mode:s.mode,level:s.level,qs:s.qs.map(n=>byName[n])},true);
   game.total=s.total;game.results=s.results.map(r=>({q:byName[r.n],d:r.d,p:r.p}));
   game.results.forEach((r,i)=>addHist($('hist'),i,r.q,r.d,r.p));$('total').textContent=nf(game.total);
@@ -525,16 +567,16 @@ function resumeGame(){const s=savedGame();if(!s){showHome();return;}
   newRound();}
 
 function shuffle(a){return a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(v=>v[1]);}
-function freeSet(){return shuffle(Object.keys(CAT).flatMap(t=>shuffle(POOL.filter(p=>p.t===t)).slice(0,2)));}
+function freeSet(){return shuffle(Object.keys(CAT).flatMap(t=>shuffle(POOL.filter(p=>p.t===t&&!(kevin&&isKnoop(p)))).slice(0,2)));}
 
-function startLevel(n){start({mode:'level',level:n,qs:LEVELS[n-1].p.map(x=>byName[x])});}
+function startLevel(n){start({mode:'level',level:n,qs:levelPlaces(n).map(x=>byName[x])});}
 function startFree(){start({mode:'free',level:null,qs:freeSet()});}
 function start(g,resuming){
   if(!resuming)clearSaved();
   game=Object.assign(g,{round:0,total:0,results:[]});
   $('hist').innerHTML='';$('total').textContent='0';
   $('rndof').textContent='van '+game.qs.length;
-  $('modeline').textContent=g.mode==='level'?`Level ${g.level} · ${LEVELS[g.level-1].t}`:'Vrij spel';
+  $('modeline').textContent=modeName()+(g.mode==='level'?`Level ${g.level} · ${LEVELS[g.level-1].t}`:'Vrij spel');
   $('home').hidden=true;$('end').hidden=true;if(!resuming)newRound();
 }
 function newRound(){
@@ -605,7 +647,7 @@ function finish(){
     saveLad();
   }
   lastOutcome={mode:g.mode,level:g.level,score:S,attempt,out};
-  $('endlbl').textContent=g.mode==='level'?`Level ${g.level} · ${LEVELS[g.level-1].t}`:'Vrij spel';
+  $('endlbl').textContent=modeName()+(g.mode==='level'?`Level ${g.level} · ${LEVELS[g.level-1].t}`:'Vrij spel');
   $('endscore').textContent=nf(S)+' / '+nf(max);
   const V={
     promo:['Promotie','--up',o=>`Je gaat door naar level ${o.to}: ${LEVELS[o.to-1].t}.`],
@@ -619,9 +661,9 @@ function finish(){
   // deeltekst
   const squares=g.results.map(r=>sq(r.p)).join('');
   const url=location.origin+location.pathname;
-  const head=g.mode==='level'?`Prik Nederland · Level ${g.level} (${LEVELS[g.level-1].t})`:'Prik Nederland · Vrij spel';
+  const head='Prik Nederland · '+(kevin?'Kevin Modus · ':'')+(g.mode==='level'?`Level ${g.level} (${LEVELS[g.level-1].t})`:'Vrij spel');
   const sub=nf(S)+' / '+nf(max)+(g.mode==='level'?' · '+(attempt===1?'1e poging':'poging '+attempt):'');
-  const link=/^https?:/.test(url)?'\n'+url+(g.mode==='level'?'#level-'+g.level:''):'';
+  const link=/^https?:/.test(url)?'\n'+url+(g.mode==='level'?'#level-'+g.level+(kevin?'-kevin':''):''):'';
   $('sharetext').textContent=`${head}\n${sub}\n${squares}${link}`;
   $('copybtn').textContent='Kopieer uitslag';
   $('endhist').innerHTML='';g.results.forEach((r,i)=>addHist($('endhist'),i,r.q,r.d,r.p));
@@ -639,9 +681,10 @@ $('copybtn').onclick=async()=>{const t=$('sharetext').textContent;
 $('tohome').onclick=showHome;
 
 /* ===== Overzicht ===== */
-let selLevel=null,challengeLevel=null;
+let selLevel=null,challengeLevel=null,challengeKevin=false;
 function showHome(){
   $('end').hidden=true;$('home').hidden=false;$('resetconfirm').hidden=true;
+  $('kevin').checked=kevin;$('kbadge').hidden=!kevin;
   $('curlvl').textContent=lad.cur;$('curtitle').textContent=LEVELS[lad.cur-1].t+(lad.champ?' · kampioen':'');
   $('playcur').textContent=`Speel level ${lad.cur}`;
   const lad_el=$('ladder');lad_el.innerHTML='';
@@ -658,19 +701,24 @@ function showHome(){
   if(selLevel&&selLevel!==lad.cur){ps.hidden=false;ps.textContent=`Oefen level ${selLevel}`;}else ps.hidden=true;
   const sv=savedGame();
   if(sv){$('resume').hidden=false;const done=sv.results.length;
-    $('resumetxt').innerHTML=`Je was nog bezig met <strong>${sv.mode==='level'?'level '+sv.level+' ('+LEVELS[sv.level-1].t+')':'vrij spel'}</strong>: ${done} van ${sv.qs.length} plekken gedaan, ${nf(sv.total)} punten.`;
+    $('resumetxt').innerHTML=`Je was nog bezig met <strong>${sv.mode==='level'?'level '+sv.level+' ('+LEVELS[sv.level-1].t+')':'vrij spel'}${sv.kevin?' in Kevin Modus':''}</strong>: ${done} van ${sv.qs.length} plekken gedaan, ${nf(sv.total)} punten.`;
     $('resumebtn').textContent=sv.mode==='level'?`Verder met level ${sv.level}`:'Verder met vrij spel';}
   else $('resume').hidden=true;
   $('mycode').value=exportCode();
   // uitdaging via link
   if(challengeLevel){$('challenge').hidden=false;
-    $('challengetxt').innerHTML=`Je bent uitgedaagd voor <strong>level ${challengeLevel}: ${LEVELS[challengeLevel-1].t}</strong>. Speel dezelfde 5 plekken en vergelijk je score.`+
-      (challengeLevel===lad.cur?'':' Deze ronde telt niet voor je eigen level.');
+    const tl=challengeKevin===kevin?lad:newLad(store.get(ladKey(challengeKevin),{}));
+    const own=challengeLevel===tl.cur;
+    $('challengetxt').innerHTML=`Je bent uitgedaagd voor <strong>level ${challengeLevel}: ${LEVELS[challengeLevel-1].t}${challengeKevin?' in Kevin Modus':''}</strong>. Speel dezelfde 5 plekken en vergelijk je score.`+
+      (challengeKevin!==kevin?(challengeKevin?' Kevin Modus wordt hiervoor aangezet.':' Kevin Modus wordt hiervoor uitgezet.'):'')+
+      (own?'':' Deze ronde telt niet voor je eigen level.');
     $('challengebtn').textContent=`Speel level ${challengeLevel}`;}
   else $('challenge').hidden=true;
 }
 $('resumebtn').onclick=resumeGame;
-function exportCode(){return 'PRIK1.'+btoa(unescape(encodeURIComponent(JSON.stringify({l:lad,f:fixes}))));}
+$('kevin').onchange=e=>{setKevin(e.target.checked);selLevel=null;showHome();};
+function exportCode(){const other=store.get(ladKey(!kevin),{});const n=kevin?other:lad,k=kevin?lad:other;
+  return 'PRIK1.'+btoa(unescape(encodeURIComponent(JSON.stringify({l:n,k,f:fixes}))));}
 $('transferbtn').onclick=()=>{$('transfer').hidden=!$('transfer').hidden;$('transfermsg').textContent='';};
 $('mycode').onclick=e=>e.target.select();
 $('copycode').onclick=async()=>{try{await navigator.clipboard.writeText($('mycode').value);$('copycode').textContent='Gekopieerd';}
@@ -678,18 +726,19 @@ $('copycode').onclick=async()=>{try{await navigator.clipboard.writeText($('mycod
 $('loadbtn').onclick=()=>{const raw=$('loadcode').value.trim();
   try{if(!raw.startsWith('PRIK1.'))throw 0;const o=JSON.parse(decodeURIComponent(escape(atob(raw.slice(6)))));
     if(!o.l||!(o.l.cur>=1&&o.l.cur<=LEVELS.length))throw 0;
-    lad=Object.assign({cur:1,max:1,best:{},first:{},tries:{},champ:false},o.l);saveLad();
+    store.set(ladKey(false),newLad(o.l));if(o.k&&o.k.cur>=1&&o.k.cur<=LEVELS.length)store.set(ladKey(true),newLad(o.k));
+    lad=newLad(store.get(ladKey(kevin),{}));
     if(o.f&&typeof o.f==='object'){fixes=Object.assign(fixes,o.f);store.set('prik-fixes',fixes);POOL.forEach(p=>{if(fixes[p.n])p.c=fixes[p.n];});updateFixes();}
     $('loadcode').value='';selLevel=null;showHome();$('transfer').hidden=false;$('transfermsg').textContent=`Geladen: je staat nu op level ${lad.cur}.`;}
   catch(e){$('transfermsg').textContent='Deze code klopt niet. Kopieer de hele code, inclusief PRIK1. aan het begin.';}};
 $('playcur').onclick=()=>startLevel(lad.cur);
 $('playsel').onclick=()=>startLevel(selLevel);
 $('playfree').onclick=startFree;
-$('challengebtn').onclick=()=>{const n=challengeLevel;challengeLevel=null;try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}startLevel(n);};
-$('reset').onclick=()=>{$('resetconfirm').hidden=false;};
+$('challengebtn').onclick=()=>{const n=challengeLevel;challengeLevel=null;setKevin(challengeKevin);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}startLevel(n);};
+$('reset').onclick=()=>{$('resettxt').textContent=`Weet je het zeker? Je level en al je scores per level${kevin?' in Kevin Modus':''} worden gewist.`;$('resetconfirm').hidden=false;};
 $('resetno').onclick=()=>{$('resetconfirm').hidden=true;};
-$('resetyes').onclick=()=>{clearSaved();lad={cur:1,max:1,best:{},first:{},tries:{},champ:false};saveLad();selLevel=null;showHome();};
-function readHash(){const m=/^#level-(\d{1,2})$/.exec(location.hash);const n=m&&+m[1];challengeLevel=n>=1&&n<=LEVELS.length?n:null;}
+$('resetyes').onclick=()=>{clearSaved();lad=newLad();saveLad();selLevel=null;showHome();};
+function readHash(){const m=/^#level-(\d{1,2})(-kevin)?$/.exec(location.hash);const n=m&&+m[1];challengeLevel=n>=1&&n<=LEVELS.length?n:null;challengeKevin=!!(m&&m[2]);}
 window.addEventListener('hashchange',()=>{readHash();if(!$('home').hidden)showHome();});
 
 /* correcties exporteren */
